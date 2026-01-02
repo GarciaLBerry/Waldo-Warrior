@@ -1,0 +1,127 @@
+using System.Collections.Generic;
+using System;
+using System.IO;
+using System.Text.Json;
+/// <summary>
+/// The program saves your file paths in a HashMap corresponding with their folder, saved to a JSON file
+/// </summary>
+public class Program
+{
+    public static List<String> toMakeTree = new List<String>();
+    public static List<String> toMakeTreePaths = new List<String>();
+    public static string path = "map.json";
+    /// <summary>
+    /// The Main function takes user inputs based on finding files. Traverses through your computer first to map
+    /// all files to their file paths. Type in the exact file name to recieve the file path, or use command 
+    /// /reconfig to reconfigure the hashmap.
+    /// </summary>
+    /// <param name="args"> Unused </param>
+    public static void Main(string[] args)
+    {
+        Dictionary<String, List<String>> mapping = null;
+        if(!File.Exists(path))
+        {
+            Console.WriteLine("Failed to Find File Data. Generating Now.");
+            Traverse(@"C:\");
+            Console.WriteLine("Files on Device: " + toMakeTree.Count + " (This count includes both file objects and directories)");
+            mapping = MakeHashmap(toMakeTree, toMakeTreePaths);
+            Console.WriteLine("Mapping Completed");
+            var output = JsonSerializer.Serialize(mapping, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(path, output);
+        }
+        else
+        {
+            Console.WriteLine("Found File Data");
+            var json = File.ReadAllText(path);
+            mapping = JsonSerializer.Deserialize<Dictionary<String, List<String>>>(json);
+        }
+        String get = Console.ReadLine();
+        while(get != "/exit")
+        {
+            if(get == "/reconfig")
+            {
+                Traverse(@"C:\");
+                Console.WriteLine("Files on Device: " + toMakeTree.Count + " (This count includes both file objects and directories)");
+                mapping = MakeHashmap(toMakeTree, toMakeTreePaths);
+                Console.WriteLine("Mapping Completed");
+                var output = JsonSerializer.Serialize(mapping, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(path, output);
+            }
+            else
+            {
+                try
+                {
+                    List<String> toPrint = mapping[get];
+                    for (int i = 0; i < toPrint.Count; i++)
+                    {
+                        Console.WriteLine("Fount It! " + toPrint[i]);
+                    }
+                }
+                catch (KeyNotFoundException)
+                {
+                    Console.WriteLine("Failed to Find");
+                }
+            }
+            get = Console.ReadLine();
+        }
+    }
+    /// <summary>
+    /// Makes the hashmap using the data by corresponding the file path with
+    /// all files in the same directory.
+    /// </summary>
+    /// <param name="fileNames"></param>
+    /// <param name="filePaths"></param>
+    /// <returns>Dictionary<String, List<String>> - A Hashmap corresponding ever file path with the files inside of it</returns>
+    public static Dictionary<String, List<String>> MakeHashmap(List<String> fileNames, List<String> filePaths)
+    {
+        Dictionary<String, List<String>> toReturn = new Dictionary<string, List<string>>();
+        for(int i = 0; i <  fileNames.Count; i++)
+        {
+            if (toReturn.ContainsKey(fileNames[i]))
+            {
+                toReturn[fileNames[i]].Add(filePaths[i]);
+            }
+            else
+            {
+                List<String> returnResults = new List<String>();
+                returnResults.Add(filePaths[i]);
+                toReturn.Add(fileNames[i], returnResults);
+            }
+        }
+        return toReturn;
+    }
+    /// <summary>
+    /// Traverses through every file on your hard drive and sets static List variables equal to the list of all files, and the list
+    /// of all file paths.
+    /// </summary>
+    /// <param name="path"></param>
+    public static void Traverse(string path)
+    {
+        try
+        {
+            foreach (string file in Directory.GetFiles(path))
+            {
+                toMakeTreePaths.Add(file);
+                String[] parts = file.Split("\\");
+                toMakeTree.Add(parts[parts.Length - 1]);
+            }
+
+            foreach (string dir in Directory.GetDirectories(path))
+            {
+                toMakeTreePaths.Add(dir);
+                String[] parts = dir.Split("\\");
+                toMakeTree.Add(parts[parts.Length - 1]);
+                Traverse(dir);
+            }
+        }
+        catch (UnauthorizedAccessException)
+        {
+            //Console.WriteLine("Access denied: " + path);
+        }
+        catch (PathTooLongException)
+        {
+            //Console.WriteLine("Path too long: " + path);
+        }
+    }
+
+}
